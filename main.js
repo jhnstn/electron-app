@@ -5,6 +5,11 @@ const prompt = require('electron-prompt')
 let win, currentBlueprintPath;
 let editorDirty = false;
 
+const setEditorDirty = (dirty) => {
+	console.log("setting editor dirty to", dirty)
+	editorDirty = dirty;
+}
+
 /**
  * Prompts the user to save unsaved changes before proceeding
  * @returns {boolean} true if the user should proceed without saving, false otherwise
@@ -62,6 +67,7 @@ const loadBlueprint = (path) => {
 	if (!shouldProceedWithoutSaving("open a blueprint")) {
 		return;
 	}
+	setEditorDirty(false);
 	if (!path) {
 		paths = dialog.showOpenDialogSync({ properties: ['openFile'], filters: [{ name: 'Blueprints', extensions: ['json'] }]	})
 		if (!paths) {
@@ -85,6 +91,7 @@ const loadBlueprintFromURL = async () => {
 	if (!shouldProceedWithoutSaving("import a blueprint from a URL")) {
 		return;
 	}
+	setEditorDirty(false);
 
 	const url = await prompt({
 		title: 'Enter URL',
@@ -108,7 +115,6 @@ const loadBlueprintFromURL = async () => {
 		return;
 	}
 	currentBlueprintPath = ""
-	editorDirty = true;
 	win.webContents.send('load-blueprint', { blueprintJson: JSON.stringify(blueprintJson, null, 2) })
 	enableSaveMenuItems()
 }
@@ -123,7 +129,7 @@ const blueprintSave =  async() => {
 	fs.writeFileSync(currentBlueprintPath, blueprintJson)
 
 	disableSaveMenuItem()
-	editorDirty = false;
+	setEditorDirty(false);
 }
 
 const blueprintSaveAs = () => {
@@ -138,8 +144,9 @@ const blueprintSaveAs = () => {
 }
 
 const handleEditorChange = (_e, _value) => {
+	console.log("editor changed")
 	enableSaveMenuItems()
-	editorDirty = true;
+	setEditorDirty(true);
 }
 
 const handleBlueprintEvent = (_e, event) => {
@@ -174,6 +181,7 @@ const template = [
 		label: 'Blueprints',
 		role:'fileMenu',
 		submenu: [
+			{ label: 'New', accelerator: 'CmdOrCtrl+N', click: () => handleBlueprintEvent(null, 'new') },
 			{ label: 'Open', accelerator: 'CmdOrCtrl+O', click: () => loadBlueprint() },
 
 			/*
@@ -192,6 +200,7 @@ const template = [
 			},
 			*/
 			{ label: 'Import from URL', click: () => loadBlueprintFromURL() },
+
 			{ id: 'blueprint:save', label: 'Save', accelerator: 'CmdOrCtrl+S', click: blueprintSave, enabled: false },
 			{ id: 'blueprint:saveAs', label: 'Save As', accelerator: 'CmdOrCtrl+Shift+S', click: blueprintSaveAs, enabled: false },
 		]
